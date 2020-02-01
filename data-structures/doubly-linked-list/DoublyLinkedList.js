@@ -1,15 +1,15 @@
-import LinkedListNode from './LinkedListNode';
+import DoublyLinkedListNode from './DoublyLinkedListNode';
 import Comparator from '../../utils/comparator/Comparator';
 
-export default class LinkedList {
+export default class DoublyLinkedList {
   /**
    * @param {Function} [comparatorFunction]
    */
   constructor(comparatorFunction) {
-    /** @var LinkedListNode */
+    /** @var DoublyLinkedListNode */
     this.head = null;
 
-    /** @var LinkedListNode */
+    /** @var DoublyLinkedListNode */
     this.tail = null;
 
     this.compare = new Comparator(comparatorFunction);
@@ -17,11 +17,18 @@ export default class LinkedList {
 
   /**
    * @param {*} value
-   * @return {LinkedList}
+   * @return {DoublyLinkedList}
    */
   prepend(value) {
     // Make new node to be a head.
-    const newNode = new LinkedListNode(value, this.head);
+    const newNode = new DoublyLinkedListNode(value, this.head);
+
+    // If there is head, then it won't be head anymore.
+    // Therefore, make its previous reference to be new node (new head).
+    // Then mark the new node as head.
+    if (this.head) {
+      this.head.previous = newNode;
+    }
     this.head = newNode;
 
     // If there is no tail yet let's make new node a tail.
@@ -34,10 +41,10 @@ export default class LinkedList {
 
   /**
    * @param {*} value
-   * @return {LinkedList}
+   * @return {DoublyLinkedList}
    */
   append(value) {
-    const newNode = new LinkedListNode(value);
+    const newNode = new DoublyLinkedListNode(value);
 
     // If there is no head yet let's make new node a head.
     if (!this.head) {
@@ -49,6 +56,11 @@ export default class LinkedList {
 
     // Attach new node to the end of linked list.
     this.tail.next = newNode;
+
+    // Attach current tail to the new node's previous reference.
+    newNode.previous = this.tail;
+
+    // Set new node to be the tail of linked list.
     this.tail = newNode;
 
     return this;
@@ -56,7 +68,7 @@ export default class LinkedList {
 
   /**
    * @param {*} value
-   * @return {LinkedListNode}
+   * @return {DoublyLinkedListNode}
    */
   delete(value) {
     if (!this.head) {
@@ -64,31 +76,45 @@ export default class LinkedList {
     }
 
     let deletedNode = null;
-
-    // If the head must be deleted then make next node that is differ
-    // from the head to be a new head.
-    while (this.head && this.compare.equal(this.head.value, value)) {
-      deletedNode = this.head;
-      this.head = this.head.next;
-    }
-
     let currentNode = this.head;
 
-    if (currentNode !== null) {
-      // If next node must be deleted then make next node to be a next next one.
-      while (currentNode.next) {
-        if (this.compare.equal(currentNode.next.value, value)) {
-          deletedNode = currentNode.next;
-          currentNode.next = currentNode.next.next;
+    while (currentNode) {
+      if (this.compare.equal(currentNode.value, value)) {
+        deletedNode = currentNode;
+
+        if (deletedNode === this.head) {
+          // If HEAD is going to be deleted...
+
+          // Set head to second node, which will become new head.
+          this.head = deletedNode.next;
+
+          // Set new head's previous to null.
+          if (this.head) {
+            this.head.previous = null;
+          }
+
+          // If all the nodes in list has same value that is passed as argument
+          // then all nodes will get deleted, therefore tail needs to be updated.
+          if (deletedNode === this.tail) {
+            this.tail = null;
+          }
+        } else if (deletedNode === this.tail) {
+          // If TAIL is going to be deleted...
+
+          // Set tail to second last node, which will become new tail.
+          this.tail = deletedNode.previous;
+          this.tail.next = null;
         } else {
-          currentNode = currentNode.next;
+          // If MIDDLE node is going to be deleted...
+          const previousNode = deletedNode.previous;
+          const nextNode = deletedNode.next;
+
+          previousNode.next = nextNode;
+          nextNode.previous = previousNode;
         }
       }
-    }
 
-    // Check if tail must be deleted.
-    if (this.compare.equal(this.tail.value, value)) {
-      this.tail = currentNode;
+      currentNode = currentNode.next;
     }
 
     return deletedNode;
@@ -98,7 +124,7 @@ export default class LinkedList {
    * @param {Object} findParams
    * @param {*} findParams.value
    * @param {function} [findParams.callback]
-   * @return {LinkedListNode}
+   * @return {DoublyLinkedListNode}
    */
   find({ value = undefined, callback = undefined }) {
     if (!this.head) {
@@ -125,13 +151,17 @@ export default class LinkedList {
   }
 
   /**
-   * @return {LinkedListNode}
+   * @return {DoublyLinkedListNode}
    */
   deleteTail() {
-    const deletedTail = this.tail;
+    if (!this.tail) {
+      // No tail to delete.
+      return null;
+    }
 
     if (this.head === this.tail) {
       // There is only one node in linked list.
+      const deletedTail = this.tail;
       this.head = null;
       this.tail = null;
 
@@ -139,24 +169,16 @@ export default class LinkedList {
     }
 
     // If there are many nodes in linked list...
+    const deletedTail = this.tail;
 
-    // Rewind to the last node and delete "next" link for the node before the last one.
-    let currentNode = this.head;
-    while (currentNode.next) {
-      if (!currentNode.next.next) {
-        currentNode.next = null;
-      } else {
-        currentNode = currentNode.next;
-      }
-    }
-
-    this.tail = currentNode;
+    this.tail = this.tail.previous;
+    this.tail.next = null;
 
     return deletedTail;
   }
 
   /**
-   * @return {LinkedListNode}
+   * @return {DoublyLinkedListNode}
    */
   deleteHead() {
     if (!this.head) {
@@ -167,6 +189,7 @@ export default class LinkedList {
 
     if (this.head.next) {
       this.head = this.head.next;
+      this.head.previous = null;
     } else {
       this.head = null;
       this.tail = null;
@@ -176,17 +199,7 @@ export default class LinkedList {
   }
 
   /**
-   * @param {*[]} values - Array of values that need to be converted to linked list.
-   * @return {LinkedList}
-   */
-  fromArray(values) {
-    values.forEach(value => this.append(value));
-
-    return this;
-  }
-
-  /**
-   * @return {LinkedListNode[]}
+   * @return {DoublyLinkedListNode[]}
    */
   toArray() {
     const nodes = [];
@@ -201,6 +214,16 @@ export default class LinkedList {
   }
 
   /**
+   * @param {*[]} values - Array of values that need to be converted to linked list.
+   * @return {DoublyLinkedList}
+   */
+  fromArray(values) {
+    values.forEach(value => this.append(value));
+
+    return this;
+  }
+
+  /**
    * @param {function} [callback]
    * @return {string}
    */
@@ -210,7 +233,7 @@ export default class LinkedList {
 
   /**
    * Reverse a linked list.
-   * @returns {LinkedList}
+   * @returns {DoublyLinkedList}
    */
   reverse() {
     let currNode = this.head;
@@ -220,9 +243,11 @@ export default class LinkedList {
     while (currNode) {
       // Store next node.
       nextNode = currNode.next;
+      prevNode = currNode.previous;
 
       // Change next node of the current node so it would link to previous node.
       currNode.next = prevNode;
+      currNode.previous = nextNode;
 
       // Move prevNode and currNode nodes one step forward.
       prevNode = currNode;
